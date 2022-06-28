@@ -2,10 +2,11 @@ extern crate bindgen;
 extern crate cmake;
 
 use cmake::Config;
-use std::env;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{
+    env,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 fn build_static_cyclonedds() -> String {
     if !Path::new("src/cyclonedds/.git").exists() {

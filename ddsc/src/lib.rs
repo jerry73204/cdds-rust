@@ -1,6 +1,5 @@
 extern crate libc;
-use std::ffi::CString;
-use std::os::raw::c_char;
+use std::{ffi::CString, os::raw::c_char};
 
 extern crate libddsc_sys;
 
