@@ -2,12 +2,22 @@ use libddsc_sys as sys;
 use std::{ffi::CString, os::raw::c_char};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    features = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "snake_case", tag = "type")
+)]
 pub enum History {
     KeepLast { n: u32 },
     KeepAll,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    features = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "snake_case")
+)]
 pub enum Durability {
     Volatile,
     TransientLocal,
