@@ -11,15 +11,15 @@ Native bindings to libddsc (CycloneDDS).
 build="build.rs"
 
 [dependencies]
-libc = "0.2.67"
+libc = "0.2.126"
 
 [lib]
 name = "libddsc_sys"
 path = "src/lib.rs"
 
 [build-dependencies]
-bindgen = "0.55.1"
-cmake = "0.1.44"
+bindgen = "0.60.1"
+cmake = "0.1.48"
 
 [features]
 default = []

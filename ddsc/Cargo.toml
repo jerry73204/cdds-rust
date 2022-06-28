@@ -17,7 +17,7 @@ edition = "2018"
 name = "dds"
 
 [dependencies]
-libc = "0.2.67"
+libc = "0.2.126"
 libddsc-sys = { path = "../libddsc-sys", version = "0.1.2" }
 
 [features]
