@@ -1,10 +1,11 @@
+use libddsc_sys as sys;
 use std::ptr;
 
-use libddsc_sys as sys;
+use crate::{error::retcode_to_result, Error, QoS};
 
 #[derive(Debug)]
 pub struct Participant {
-    entity: sys::dds_entity_t,
+    pub(crate) entity: sys::dds_entity_t,
 }
 
 impl Drop for Participant {
@@ -14,8 +15,15 @@ impl Drop for Participant {
 }
 
 impl Participant {
-    pub fn new(d: sys::dds_domainid_t) -> Participant {
-        let e = unsafe { sys::dds_create_participant(d, ptr::null(), ptr::null()) };
-        Participant { entity: e }
+    pub fn new(domain: Option<usize>, qos: Option<&QoS>) -> Result<Self, Error> {
+        let domain = domain
+            .map(|d| d as sys::dds_domainid_t)
+            .unwrap_or(sys::DDS_DOMAIN_DEFAULT);
+        let qos_ptr = qos.map(|q| q.ptr as *const _).unwrap_or(ptr::null());
+        let listener_ptr = ptr::null();
+        let retcode = unsafe { sys::dds_create_participant(domain, qos_ptr, listener_ptr) };
+        let id = retcode_to_result(retcode)?;
+
+        Ok(Participant { entity: id })
     }
 }

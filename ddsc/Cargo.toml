@@ -17,10 +17,14 @@ edition = "2021"
 name = "dds"
 
 [dependencies]
+anyhow = "1.0.58"
+chrono = "0.4.19"
+humantime = { version = "1.1.1" }
 libc = "0.2.126"
 libddsc-sys = { path = "../libddsc-sys", version = "0.1.2" }
 serde = { version = "1.0.137", features = ["derive"], optional = true }
 
 [features]
-default = []
+default = ["with-serde"]
 static = ["libddsc-sys/static"]
+with-serde = ["serde"]

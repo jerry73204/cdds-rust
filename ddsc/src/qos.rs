@@ -1,34 +1,102 @@
+use anyhow::bail;
+use anyhow::Result;
 use libddsc_sys as sys;
 use std::{ffi::CString, os::raw::c_char};
 
+use crate::Duration;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
-    features = "serde",
+    feature = "with-serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "snake_case", tag = "type")
+)]
+pub enum Reliability {
+    BestEffort,
+    Reliable { max_blocking_time: Duration },
+}
+
+impl Reliability {
+    pub fn from_raw_parts(
+        kind: sys::dds_reliability_kind,
+        t: Option<sys::dds_duration_t>,
+    ) -> Result<Self> {
+        use sys::dds_reliability_kind as R;
+
+        let history = match (kind, t) {
+            (R::DDS_RELIABILITY_RELIABLE, Some(t)) => Self::Reliable {
+                max_blocking_time: Duration::from_raw(t),
+            },
+            (R::DDS_RELIABILITY_BEST_EFFORT, None) => Self::BestEffort,
+            _ => bail!("invalid arguments"),
+        };
+
+        Ok(history)
+    }
+
+    pub fn to_raw_parts(&self) -> (sys::dds_reliability_kind, Option<sys::dds_duration_t>) {
+        use sys::dds_reliability_kind as R;
+
+        match *self {
+            Self::Reliable {
+                max_blocking_time: t,
+            } => (R::DDS_RELIABILITY_RELIABLE, Some(t.to_raw())),
+            Self::BestEffort => (R::DDS_RELIABILITY_BEST_EFFORT, None),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "with-serde",
     derive(serde::Serialize, serde::Deserialize),
     serde(rename_all = "snake_case", tag = "type")
 )]
 pub enum History {
-    KeepLast { n: u32 },
+    KeepLast { n: usize },
     KeepAll,
+}
+
+impl History {
+    pub fn from_raw(kind: sys::dds_history_kind, n: Option<usize>) -> Result<Self> {
+        use sys::dds_history_kind as H;
+
+        let history = match (kind, n) {
+            (H::DDS_HISTORY_KEEP_LAST, Some(n)) => Self::KeepLast { n },
+            (H::DDS_HISTORY_KEEP_ALL, None) => Self::KeepAll,
+            _ => bail!("invalid arguments"),
+        };
+
+        Ok(history)
+    }
+
+    pub fn to_raw(&self) -> (sys::dds_history_kind, Option<usize>) {
+        use sys::dds_history_kind as H;
+
+        match *self {
+            History::KeepLast { n } => (H::DDS_HISTORY_KEEP_LAST, Some(n)),
+            History::KeepAll => (H::DDS_HISTORY_KEEP_ALL, None),
+        }
+    }
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
-    features = "serde",
+    feature = "with-serde",
     derive(serde::Serialize, serde::Deserialize),
     serde(rename_all = "snake_case")
 )]
 pub enum Durability {
-    Volatile = sys::dds_durability_kind_DDS_DURABILITY_VOLATILE,
-    TransientLocal = sys::dds_durability_kind_DDS_DURABILITY_TRANSIENT_LOCAL,
-    Transient = sys::dds_durability_kind_DDS_DURABILITY_TRANSIENT,
-    Persistent = sys::dds_durability_kind_DDS_DURABILITY_PERSISTENT,
+    Volatile = sys::dds_durability_kind::DDS_DURABILITY_VOLATILE.0,
+    TransientLocal = sys::dds_durability_kind::DDS_DURABILITY_TRANSIENT_LOCAL.0,
+    Transient = sys::dds_durability_kind::DDS_DURABILITY_TRANSIENT.0,
+    Persistent = sys::dds_durability_kind::DDS_DURABILITY_PERSISTENT.0,
 }
 
 #[derive(Debug)]
 pub struct QoS {
-    qos: *mut sys::dds_qos_t,
+    pub(crate) ptr: *mut sys::dds_qos_t,
 }
 
 unsafe impl Send for QoS {}
@@ -37,27 +105,41 @@ unsafe impl Sync for QoS {}
 
 impl QoS {
     pub fn reset(&mut self) {
-        unsafe { sys::dds_qos_reset(self.qos) }
+        unsafe { sys::dds_qos_reset(self.ptr) }
     }
 
-    pub fn history(&mut self, h: History) {
-        let (kind, n) = match h {
-            History::KeepLast { n } => (sys::dds_history_kind_DDS_HISTORY_KEEP_LAST, n as i32),
-            History::KeepAll => (sys::dds_history_kind_DDS_HISTORY_KEEP_ALL, 0),
-        };
+    pub fn history(&mut self, h: History) -> &mut Self {
+        let (kind, n) = h.to_raw();
+        let n = n.unwrap_or(0) as i32;
 
         unsafe {
-            sys::dds_qset_history(self.qos, kind, n);
+            sys::dds_qset_history(self.ptr, kind, n);
         }
+
+        self
     }
 
-    pub fn durability(&mut self, d: Durability) {
+    pub fn durability(&mut self, d: Durability) -> &mut Self {
+        let dur = sys::dds_durability_kind(d as u32);
+
         unsafe {
-            sys::dds_qset_durability(self.qos, d as u32);
+            sys::dds_qset_durability(self.ptr, dur);
         }
+
+        self
     }
 
-    pub fn partitions<S>(&mut self, ps: &[S])
+    pub fn reliability(&mut self, r: Reliability) -> &mut Self {
+        let (rel, t) = r.to_raw_parts();
+        let t = t.unwrap_or(sys::DDS_INFINITY);
+        unsafe {
+            sys::dds_qset_reliability(self.ptr, rel, t);
+        }
+
+        self
+    }
+
+    pub fn partitions<S>(&mut self, ps: &[S]) -> &mut Self
     where
         S: AsRef<str>,
     {
@@ -74,7 +156,7 @@ impl QoS {
             .collect();
         unsafe {
             sys::dds_qset_partition(
-                self.qos,
+                self.ptr,
                 ps.len() as u32,
                 cps.as_mut_ptr() as *mut *const c_char,
             )
@@ -84,20 +166,22 @@ impl QoS {
         cps.into_iter().for_each(|raw| unsafe {
             let _ = CString::from_raw(raw as *mut c_char);
         });
+
+        self
     }
 }
 
 impl Default for QoS {
     fn default() -> QoS {
         QoS {
-            qos: unsafe { sys::dds_create_qos() },
+            ptr: unsafe { sys::dds_create_qos() },
         }
     }
 }
 
 impl PartialEq for QoS {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { sys::dds_qos_equal(self.qos, other.qos) }
+        unsafe { sys::dds_qos_equal(self.ptr, other.ptr) }
     }
 }
 
@@ -106,15 +190,15 @@ impl Eq for QoS {}
 impl Clone for QoS {
     fn clone(&self) -> Self {
         let dst = QoS {
-            qos: unsafe { sys::dds_create_qos() },
+            ptr: unsafe { sys::dds_create_qos() },
         };
-        unsafe { sys::dds_copy_qos(dst.qos, self.qos as *const sys::dds_qos_t) };
+        unsafe { sys::dds_copy_qos(dst.ptr, self.ptr as *const sys::dds_qos_t) };
         dst
     }
 }
 
 impl Drop for QoS {
     fn drop(&mut self) {
-        unsafe { sys::dds_qos_delete(self.qos) };
+        unsafe { sys::dds_qos_delete(self.ptr) };
     }
 }
