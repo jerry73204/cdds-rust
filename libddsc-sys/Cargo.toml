@@ -4,7 +4,7 @@ version = "0.1.2"
 authors = ["kydos <angelo@icorsaro.net>", "Esteve Fernandez <esteve@apache.org>"]
 license = "Apache-2.0"
 links = "ddsc-util"
-edition = "2018"
+edition = "2021"
 description = """
 Native bindings to libddsc (CycloneDDS).
 """
