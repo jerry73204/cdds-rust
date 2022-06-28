@@ -41,15 +41,15 @@ fn main() {
         bindgen_builder.clang_arg(build_static_cyclonedds())
     } else {
         println!("cargo:rustc-link-lib=ddsc");
-        println!("cargo:rustc-link-search=/opt/ros/foxy/lib/x86_64-linux-gnu");
-        println!("cargo:rustc-link-search=/opt/ros/eloquent/lib");
-        println!("cargo:rustc-link-search=/opt/ros/dashing/lib");
+        // println!("cargo:rustc-link-search=/opt/ros/foxy/lib/x86_64-linux-gnu");
+        // println!("cargo:rustc-link-search=/opt/ros/eloquent/lib");
+        // println!("cargo:rustc-link-search=/opt/ros/dashing/lib");
         bindgen_builder
-            .clang_arg("-I/usr/local/include")
-            .clang_arg("-I/opt/ros/foxy/include")
-            .clang_arg("-I/opt/ros/eloquent/include")
-            .clang_arg("-I/opt/ros/dashing/include")
-            .clang_arg("-I/usr/lib/gcc/x86_64-linux-gnu/8/include")
+            // .clang_arg("-I/usr/local/include")
+            // .clang_arg("-I/opt/ros/foxy/include")
+            // .clang_arg("-I/opt/ros/eloquent/include")
+            // .clang_arg("-I/opt/ros/dashing/include")
+            // .clang_arg("-I/usr/lib/gcc/x86_64-linux-gnu/8/include")
     }
     .generate()
     .expect("Unable to generate bindings");
