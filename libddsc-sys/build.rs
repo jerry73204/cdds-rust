@@ -1,6 +1,7 @@
 extern crate bindgen;
 extern crate cmake;
 
+use bindgen::{EnumVariation, MacroTypeVariation};
 use cmake::Config;
 use std::{
     env,
@@ -35,7 +36,12 @@ fn build_static_cyclonedds() -> String {
 fn main() {
     let bindgen_builder = bindgen::Builder::default()
         .header("wrapper.h")
-        .generate_comments(false);
+        .allowlist_type("dds_.*")
+        .allowlist_function("dds_.*")
+        .allowlist_var("DDS_.*")
+        .default_enum_style(EnumVariation::NewType { is_bitfield: false })
+        .default_macro_constant_type(MacroTypeVariation::Signed)
+        .generate_comments(true);
 
     let bindings = if cfg!(feature = "static") {
         bindgen_builder.clang_arg(build_static_cyclonedds())
@@ -45,11 +51,11 @@ fn main() {
         // println!("cargo:rustc-link-search=/opt/ros/eloquent/lib");
         // println!("cargo:rustc-link-search=/opt/ros/dashing/lib");
         bindgen_builder
-            // .clang_arg("-I/usr/local/include")
-            // .clang_arg("-I/opt/ros/foxy/include")
-            // .clang_arg("-I/opt/ros/eloquent/include")
-            // .clang_arg("-I/opt/ros/dashing/include")
-            // .clang_arg("-I/usr/lib/gcc/x86_64-linux-gnu/8/include")
+        // .clang_arg("-I/usr/local/include")
+        // .clang_arg("-I/opt/ros/foxy/include")
+        // .clang_arg("-I/opt/ros/eloquent/include")
+        // .clang_arg("-I/opt/ros/dashing/include")
+        // .clang_arg("-I/usr/lib/gcc/x86_64-linux-gnu/8/include")
     }
     .generate()
     .expect("Unable to generate bindings");
