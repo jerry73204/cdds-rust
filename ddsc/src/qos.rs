@@ -54,12 +54,20 @@ impl QoS {
         }
     }
 
-    pub fn partitions(&mut self, ps: &[String]) {
-        // let mut xs : [*const c_char; ps.len()] = [ std::ptr::null(); ps.len()];
-        // let p = CString::new(ps[0]).unwrap().as_ptr();
+    pub fn partitions<S>(&mut self, ps: &[S])
+    where
+        S: AsRef<str>,
+    {
         let mut cps: Vec<*const c_char> = ps
             .iter()
-            .map(|s| CString::new(String::from(s)).unwrap().into_raw() as *const c_char)
+            .map(|s| {
+                let s = s.as_ref();
+                CString::new(s)
+                    .unwrap_or_else(|_| {
+                        panic!("unable to convert the partition name '{}' to a C string", s)
+                    })
+                    .into_raw() as *const c_char
+            })
             .collect();
         unsafe {
             sys::dds_qset_partition(
@@ -68,6 +76,11 @@ impl QoS {
                 cps.as_mut_ptr() as *mut *const c_char,
             )
         }
+
+        // deallocate Vec<CString>
+        cps.into_iter().for_each(|raw| unsafe {
+            let _ = CString::from_raw(raw as *mut c_char);
+        });
     }
 }
 
