@@ -12,6 +12,7 @@ pub enum History {
     KeepAll,
 }
 
+#[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
     features = "serde",
@@ -19,10 +20,10 @@ pub enum History {
     serde(rename_all = "snake_case")
 )]
 pub enum Durability {
-    Volatile,
-    TransientLocal,
-    Transient,
-    Persistent,
+    Volatile = sys::dds_durability_kind_DDS_DURABILITY_VOLATILE,
+    TransientLocal = sys::dds_durability_kind_DDS_DURABILITY_TRANSIENT_LOCAL,
+    Transient = sys::dds_durability_kind_DDS_DURABILITY_TRANSIENT,
+    Persistent = sys::dds_durability_kind_DDS_DURABILITY_PERSISTENT,
 }
 
 #[derive(Debug)]
@@ -39,18 +40,20 @@ impl QoS {
         unsafe { sys::dds_qos_reset(self.qos) }
     }
 
-    pub fn history(&mut self, h: &History) {
-        match h {
-            History::KeepLast { n } => unsafe {
-                sys::dds_qset_history(
-                    self.qos,
-                    sys::dds_history_kind_DDS_HISTORY_KEEP_LAST,
-                    *n as i32,
-                )
-            },
-            History::KeepAll => unsafe {
-                sys::dds_qset_history(self.qos, sys::dds_history_kind_DDS_HISTORY_KEEP_ALL, 0)
-            },
+    pub fn history(&mut self, h: History) {
+        let (kind, n) = match h {
+            History::KeepLast { n } => (sys::dds_history_kind_DDS_HISTORY_KEEP_LAST, n as i32),
+            History::KeepAll => (sys::dds_history_kind_DDS_HISTORY_KEEP_ALL, 0),
+        };
+
+        unsafe {
+            sys::dds_qset_history(self.qos, kind, n);
+        }
+    }
+
+    pub fn durability(&mut self, d: Durability) {
+        unsafe {
+            sys::dds_qset_durability(self.qos, d as u32);
         }
     }
 
